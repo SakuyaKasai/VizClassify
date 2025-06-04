@@ -13,6 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: Anthropic/claude-code-action@v1
+      - uses: anthropic/claude-code-action@v1
         with:
           api-key: ${{ secrets.ANTHROPIC_API_KEY }}
