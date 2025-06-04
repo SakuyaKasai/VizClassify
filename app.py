@@ -282,6 +282,27 @@ def display_results(results):
     cv_scores = results['cv_scores']
     st.write(f"**Cross-validation Accuracy:** {cv_scores.mean():.3f} (±{cv_scores.std()*2:.3f})")
     
+    # Calculate additional metrics on full dataset
+    model = results['model']
+    X_processed = results['X_processed']
+    y = results['y']
+    
+    # Fit model on full data to get predictions for metrics
+    model.fit(X_processed, y)
+    y_pred = model.predict(X_processed)
+    
+    # Calculate and display additional metrics
+    f1 = f1_score(y, y_pred, average='weighted')
+    precision = precision_score(y, y_pred, average='weighted')
+    recall = recall_score(y, y_pred, average='weighted')
+    accuracy = accuracy_score(y, y_pred)
+    
+    st.write("**Performance Metrics:**")
+    st.write(f"- Accuracy: {accuracy:.3f}")
+    st.write(f"- F1 Score: {f1:.3f}")
+    st.write(f"- Precision: {precision:.3f}")
+    st.write(f"- Recall: {recall:.3f}")
+    
     # Display hyperparameters
     st.write("**Hyperparameters:**")
     for param, value in results['hyperparams'].items():
