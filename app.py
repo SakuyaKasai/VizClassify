@@ -206,6 +206,9 @@ def prepare_data(X, feature_names, method, selected_features, n_components, stan
     
     else:  # PCA
         # Apply PCA
+        if n_components is None:
+            n_components = 2  # Default to 2 components if not specified
+            
         if standardize:
             scaler = StandardScaler()
             X_scaled = scaler.fit_transform(X)
