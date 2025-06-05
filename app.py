@@ -8,6 +8,7 @@ from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -114,7 +115,7 @@ def main():
         st.subheader("🤖 Classification Model")
         model_name = st.selectbox(
             "Choose model:",
-            ["Logistic Regression", "SVM", "Kernel SVM", "Random Forest"]
+            ["Logistic Regression", "SVM", "Kernel SVM", "Random Forest", "Decision Tree"]
         )
     
     # Main content area
@@ -251,6 +252,12 @@ def get_hyperparameter_controls(model_name):
         hyperparams['max_depth'] = st.selectbox("Max depth:", [None, 3, 5, 10, 20])
         hyperparams['min_samples_split'] = st.number_input("Min samples split:", 2, 20, 2)
     
+    elif model_name == "Decision Tree":
+        hyperparams['max_depth'] = st.selectbox("Max depth:", [None, 3, 5, 10, 20])
+        hyperparams['min_samples_split'] = st.number_input("Min samples split:", 2, 20, 2)
+        hyperparams['min_samples_leaf'] = st.number_input("Min samples leaf:", 1, 20, 1)
+        hyperparams['criterion'] = st.selectbox("Split criterion:", ["gini", "entropy"])
+    
     return hyperparams
 
 def get_model(model_name, hyperparams):
@@ -263,6 +270,8 @@ def get_model(model_name, hyperparams):
         return SVC(**hyperparams, random_state=42)
     elif model_name == "Random Forest":
         return RandomForestClassifier(**hyperparams, random_state=42)
+    elif model_name == "Decision Tree":
+        return DecisionTreeClassifier(**hyperparams, random_state=42)
 
 def perform_cross_validation(model, X, y, cv_method, k_folds):
     """Perform cross-validation and return scores"""
