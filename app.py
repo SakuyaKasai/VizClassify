@@ -9,6 +9,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -115,7 +116,7 @@ def main():
         st.subheader("🤖 Classification Model")
         model_name = st.selectbox(
             "Choose model:",
-            ["Logistic Regression", "SVM", "Kernel SVM", "Random Forest", "Decision Tree"]
+            ["Logistic Regression", "SVM", "Kernel SVM", "Random Forest", "Decision Tree", "K-Nearest Neighbors"]
         )
     
     # Main content area
@@ -258,6 +259,12 @@ def get_hyperparameter_controls(model_name):
         hyperparams['min_samples_leaf'] = st.number_input("Min samples leaf:", 1, 20, 1)
         hyperparams['criterion'] = st.selectbox("Split criterion:", ["gini", "entropy"])
     
+    elif model_name == "K-Nearest Neighbors":
+        hyperparams['n_neighbors'] = st.number_input("Number of neighbors (k):", 1, 50, 5)
+        hyperparams['weights'] = st.selectbox("Weight function:", ["uniform", "distance"])
+        hyperparams['algorithm'] = st.selectbox("Algorithm:", ["auto", "ball_tree", "kd_tree", "brute"])
+        hyperparams['metric'] = st.selectbox("Distance metric:", ["minkowski", "euclidean", "manhattan"])
+    
     return hyperparams
 
 def get_model(model_name, hyperparams):
@@ -272,6 +279,8 @@ def get_model(model_name, hyperparams):
         return RandomForestClassifier(**hyperparams, random_state=42)
     elif model_name == "Decision Tree":
         return DecisionTreeClassifier(**hyperparams, random_state=42)
+    elif model_name == "K-Nearest Neighbors":
+        return KNeighborsClassifier(**hyperparams)
 
 def perform_cross_validation(model, X, y, cv_method, k_folds):
     """Perform cross-validation and return scores"""
