@@ -316,10 +316,17 @@ def display_results(results):
     accuracy = accuracy_score(y, y_pred)
     
     st.write("**Performance Metrics:**")
-    st.write(f"- Accuracy: {accuracy:.3f}")
-    st.write(f"- F1 Score: {f1:.3f}")
-    st.write(f"- Precision: {precision:.3f}")
-    st.write(f"- Recall: {recall:.3f}")
+    
+    # Create horizontal table for metrics
+    metrics_data = {
+        'Accuracy': [f"{accuracy:.3f}"],
+        'F1 Score': [f"{f1:.3f}"],
+        'Precision': [f"{precision:.3f}"],
+        'Recall': [f"{recall:.3f}"]
+    }
+    
+    metrics_df = pd.DataFrame(metrics_data)
+    st.table(metrics_df)
     
     # Display hyperparameters
     st.write("**Hyperparameters:**")
