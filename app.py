@@ -5,6 +5,7 @@ from sklearn.datasets import load_iris, load_breast_cancer, load_wine
 from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from sklearn.feature_selection import RFE
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
@@ -59,8 +60,14 @@ def main():
         # Feature selection method
         feature_method = st.radio(
             "Feature selection method:",
-            ["Manual", "PCA (Automatic)"]
+            ["Manual", "PCA (Automatic)", "RFE (Recursive Feature Elimination)"]
         )
+        
+        # Initialize variables for different feature selection methods
+        selected_features = None
+        n_components = None
+        n_features_to_select = None
+        rfe_estimator = None
         
         if feature_method == "Manual":
             # Manual feature selection
@@ -79,7 +86,7 @@ def main():
             elif n_features < 2:
                 st.error("❌ At least 2 features required.")
         
-        else:  # PCA
+        elif feature_method == "PCA (Automatic)":
             n_components = st.slider(
                 "Number of PCA components:",
                 min_value=2,
@@ -89,6 +96,27 @@ def main():
             )
             if n_components > 2:
                 st.warning("⚠️ More than 2 components selected. 2D visualization not available.")
+        
+        else:  # RFE
+            # RFE-specific controls
+            rfe_estimator = st.selectbox(
+                "Choose estimator for RFE:",
+                ["Logistic Regression", "Random Forest", "SVM"],
+                help="Base estimator to use for feature ranking"
+            )
+            
+            n_features_to_select = st.slider(
+                "Number of features to select:",
+                min_value=2,
+                max_value=min(len(feature_names), 10),
+                value=min(5, len(feature_names)),
+                help="Number of features to select with RFE"
+            )
+            
+            # Show live count and warning
+            st.write(f"**Features to select:** {n_features_to_select}")
+            if n_features_to_select > 2:
+                st.warning("⚠️ More than 2 features selected. 2D visualization not available.")
         
         # Standardization option
         standardize = st.checkbox(
@@ -151,8 +179,11 @@ def main():
                 X_processed, feature_labels = prepare_data(
                     X, feature_names, feature_method, 
                     selected_features if feature_method == "Manual" else None,
-                    n_components if feature_method == "PCA" else None,
-                    standardize
+                    n_components if feature_method == "PCA (Automatic)" else None,
+                    standardize,
+                    y,
+                    n_features_to_select if feature_method == "RFE (Recursive Feature Elimination)" else None,
+                    rfe_estimator if feature_method == "RFE (Recursive Feature Elimination)" else None
                 )
                 
                 # Check if data is valid
@@ -195,7 +226,7 @@ def load_selected_dataset(dataset_name):
     
     return data.data, data.target, data.feature_names, data.target_names
 
-def prepare_data(X, feature_names, method, selected_features, n_components, standardize):
+def prepare_data(X, feature_names, method, selected_features, n_components, standardize, y=None, n_features_to_select=None, rfe_estimator=None):
     """Prepare data based on feature selection method and preprocessing options"""
     if method == "Manual":
         if not selected_features or len(selected_features) < 2:
@@ -206,7 +237,7 @@ def prepare_data(X, feature_names, method, selected_features, n_components, stan
         X_processed = X[:, feature_indices]
         feature_labels = selected_features
     
-    else:  # PCA
+    elif method == "PCA (Automatic)":
         # Apply PCA
         if n_components is None:
             n_components = 2  # Default to 2 components if not specified
@@ -220,6 +251,37 @@ def prepare_data(X, feature_names, method, selected_features, n_components, stan
         pca = PCA(n_components=n_components)
         X_processed = pca.fit_transform(X_scaled)
         feature_labels = [f"PC{i+1}" for i in range(n_components)]
+    
+    else:  # RFE
+        # Apply RFE
+        if n_features_to_select is None:
+            n_features_to_select = min(5, len(feature_names))
+            
+        # Get the base estimator for RFE
+        if rfe_estimator == "Logistic Regression":
+            base_estimator = LogisticRegression(random_state=42, max_iter=1000)
+        elif rfe_estimator == "Random Forest":
+            base_estimator = RandomForestClassifier(n_estimators=100, random_state=42)
+        else:  # SVM
+            base_estimator = SVC(kernel='linear', random_state=42)
+        
+        # Apply standardization before RFE if requested
+        if standardize:
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+        else:
+            X_scaled = X
+        
+        # Apply RFE
+        if y is None:
+            return None, None  # Cannot perform RFE without target variable
+        
+        rfe = RFE(estimator=base_estimator, n_features_to_select=n_features_to_select)
+        X_processed = rfe.fit_transform(X_scaled, y)
+        
+        # Get selected feature names
+        selected_mask = rfe.support_
+        feature_labels = [feature_names[i] for i, selected in enumerate(selected_mask) if selected]
     
     # Apply standardization if requested (for manual selection)
     if method == "Manual" and standardize:
@@ -316,10 +378,17 @@ def display_results(results):
     accuracy = accuracy_score(y, y_pred)
     
     st.write("**Performance Metrics:**")
-    st.write(f"- Accuracy: {accuracy:.3f}")
-    st.write(f"- F1 Score: {f1:.3f}")
-    st.write(f"- Precision: {precision:.3f}")
-    st.write(f"- Recall: {recall:.3f}")
+    
+    # Create horizontal table for metrics
+    metrics_data = {
+        'Accuracy': [f"{accuracy:.3f}"],
+        'F1 Score': [f"{f1:.3f}"],
+        'Precision': [f"{precision:.3f}"],
+        'Recall': [f"{recall:.3f}"]
+    }
+    
+    metrics_df = pd.DataFrame(metrics_data)
+    st.table(metrics_df)
     
     # Display hyperparameters
     st.write("**Hyperparameters:**")
