@@ -5,7 +5,7 @@ from sklearn.datasets import load_iris, load_breast_cancer, load_wine
 from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-from sklearn.feature_selection import RFE
+from sklearn.feature_selection import RFE, VarianceThreshold
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
@@ -60,7 +60,7 @@ def main():
         # Feature selection method
         feature_method = st.radio(
             "Feature selection method:",
-            ["Manual", "PCA (Automatic)", "RFE (Recursive Feature Elimination)"]
+            ["Manual", "PCA (Automatic)", "RFE (Recursive Feature Elimination)", "VarianceThreshold"]
         )
         
         # Initialize variables for different feature selection methods
@@ -68,6 +68,7 @@ def main():
         n_components = None
         n_features_to_select = None
         rfe_estimator = None
+        variance_threshold = None
         
         if feature_method == "Manual":
             # Manual feature selection
@@ -117,6 +118,21 @@ def main():
             st.write(f"**Features to select:** {n_features_to_select}")
             if n_features_to_select > 2:
                 st.warning("⚠️ More than 2 features selected. 2D visualization not available.")
+        
+        elif feature_method == "VarianceThreshold":
+            # VarianceThreshold-specific controls
+            variance_threshold = st.number_input(
+                "Variance threshold:",
+                min_value=0.0,
+                max_value=10.0,
+                value=0.0,
+                step=0.01,
+                format="%.3f",
+                help="Features with variance below this threshold will be removed"
+            )
+            
+            st.write(f"**Variance threshold:** {variance_threshold}")
+            st.info("💡 Features with variance below the threshold will be automatically removed.")
         
         # Standardization option
         standardize = st.checkbox(
@@ -183,7 +199,8 @@ def main():
                     standardize,
                     y,
                     n_features_to_select if feature_method == "RFE (Recursive Feature Elimination)" else None,
-                    rfe_estimator if feature_method == "RFE (Recursive Feature Elimination)" else None
+                    rfe_estimator if feature_method == "RFE (Recursive Feature Elimination)" else None,
+                    variance_threshold if feature_method == "VarianceThreshold" else None
                 )
                 
                 # Check if data is valid
@@ -226,7 +243,7 @@ def load_selected_dataset(dataset_name):
     
     return data.data, data.target, data.feature_names, data.target_names
 
-def prepare_data(X, feature_names, method, selected_features, n_components, standardize, y=None, n_features_to_select=None, rfe_estimator=None):
+def prepare_data(X, feature_names, method, selected_features, n_components, standardize, y=None, n_features_to_select=None, rfe_estimator=None, variance_threshold=None):
     """Prepare data based on feature selection method and preprocessing options"""
     if method == "Manual":
         if not selected_features or len(selected_features) < 2:
@@ -283,7 +300,31 @@ def prepare_data(X, feature_names, method, selected_features, n_components, stan
         selected_mask = rfe.support_
         feature_labels = [feature_names[i] for i, selected in enumerate(selected_mask) if selected]
     
-    # Apply standardization if requested (for manual selection)
+    elif method == "VarianceThreshold":
+        # Apply VarianceThreshold
+        if variance_threshold is None:
+            variance_threshold = 0.0  # Default threshold
+            
+        # Apply standardization before VarianceThreshold if requested
+        if standardize:
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+        else:
+            X_scaled = X
+        
+        # Apply VarianceThreshold
+        variance_selector = VarianceThreshold(threshold=variance_threshold)
+        X_processed = variance_selector.fit_transform(X_scaled)
+        
+        # Get selected feature names
+        selected_mask = variance_selector.get_support()
+        feature_labels = [feature_names[i] for i, selected in enumerate(selected_mask) if selected]
+        
+        # Check if any features remain
+        if X_processed.shape[1] == 0:
+            return None, None  # No features selected
+    
+    # Apply standardization if requested (for manual selection only, others handle it internally)
     if method == "Manual" and standardize:
         scaler = StandardScaler()
         X_processed = scaler.fit_transform(X_processed)
